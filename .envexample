@@ -1,0 +1,20 @@
+#환율
+EXCHANGE_RATE_KEY=
+
+#open_api
+open_api_key=
+
+#날씨
+weather_api_key=
+
+#주식
+alpha_api_key=
+
+#증권
+data_api_key=
+
+#관세청
+HS_API_KEY=
+
+#한국은행 경제통계시스템 (ECOS) API
+ECOS_API_KEY=
