@@ -3,4 +3,3 @@ requests
 python-dotenv
 openai
 python-docx
-zipfile
