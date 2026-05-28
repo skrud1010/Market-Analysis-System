@@ -75,12 +75,12 @@ try:
     col1, col2, col3 = st.columns(3)
     with col1:
         # 시리즈의 마지막 값을 스칼라(숫자)로 변환하여 출력
-        val_comm = float(commodity_data['가격'].iloc[-1])
+        val_comm = float(commodity_data['Close'].iloc[-1])
         st.metric(f"현재 {selected_asset} 가격", f"{val_comm:,.2f}")
     with col2:
         st.metric(f"현재 {currency_pair} 환율", f"{current_rate:,.2f}")
     with col3:
-        val_stock = float(stock_data['종가'].iloc[-1])
+        val_stock = float(stock_data['Close'].iloc[-1])
         st.metric("관련주 종가", f"{val_stock:,.0f}원")
 
     # 2. 상관관계 계산 부분 수정 (정확한 매칭을 위해 인덱스 기준 병합)
