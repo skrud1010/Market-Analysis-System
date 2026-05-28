@@ -49,12 +49,12 @@ with st.sidebar:
     start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
 
 # 3. 데이터 로딩 함수
+# 🛠️ 수정 후
 @st.cache_data
 def get_data(commodity_ticker, stock_ticker, start):
-    # 원자재 데이터 (yfinance)
-    commodity = yf.download(commodity_ticker, start=start)['Close']
-    # 주가 데이터 (FinanceDataReader)
-    stock = fdr.DataReader(stock_ticker, start=start)['Close']
+    # 끝에 .squeeze()를 붙여서 데이터 형식을 통일해 줍니다.
+    commodity = yf.download(commodity_ticker, start=start)['Close'].squeeze()
+    stock = fdr.DataReader(stock_ticker, start=start)['Close'].squeeze()
     return commodity, stock
 
 def get_exchange_rate(pair):
@@ -72,15 +72,18 @@ try:
         current_rate = get_exchange_rate(currency_pair)
 
     # 1. 상단 핵심 지표 수정
+    # 🛠️ 수정 후
+    # 1. 상단 핵심 지표 수정
     col1, col2, col3 = st.columns(3)
     with col1:
-        # 시리즈의 마지막 값을 스칼라(숫자)로 변환하여 출력
-        val_comm = float(commodity_data['Close'].iloc[-1])
+        # ['Close']를 빼고 깔끔하게 .iloc[-1]만 남깁니다.
+        val_comm = float(commodity_data.iloc[-1])
         st.metric(f"현재 {selected_asset} 가격", f"{val_comm:,.2f}")
     with col2:
         st.metric(f"현재 {currency_pair} 환율", f"{current_rate:,.2f}")
     with col3:
-        val_stock = float(stock_data['Close'].iloc[-1])
+        # 여기도 .iloc[-1]만 남깁니다.
+        val_stock = float(stock_data.iloc[-1])
         st.metric("관련주 종가", f"{val_stock:,.0f}원")
 
     # 2. 상관관계 계산 부분 수정 (정확한 매칭을 위해 인덱스 기준 병합)
