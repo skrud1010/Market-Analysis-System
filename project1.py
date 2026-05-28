@@ -9,117 +9,133 @@ import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
-# 1. 환경 설정
+# 1. Environment & Config Setup
 load_dotenv()
-EXCHANGE_RATE_KEY = os.getenv("EXCHANGE_RATE_KEY") # 발급받으신 API 키를 .env에 넣어주세요.
+EXCHANGE_RATE_KEY = os.getenv("EXCHANGE_RATE_KEY")
 
-st.set_page_config(layout="wide", page_title="Trade Analytics Terminal")
+st.set_page_config(layout="wide", page_title="Macro Markets Terminal")
 
-# 디자인 스타일링
+# Custom UI Styling
 st.markdown("""
     <style>
     .main-header {
         font-size: 28px; font-weight: 800; color: #ffcc00;
         padding: 10px; border-bottom: 2px solid #333; margin-bottom: 20px;
     }
-    .metric-container {
-        background-color: #1e1e1e; padding: 15px; border-radius: 10px;
-    }
     </style>
-    <div class="main-header"> 원자재-환율-관련주 상관관계 분석기</div>
+    <div class="main-header">Macro Markets: Commodity, Currency & Equity Analyzer</div>
     """, unsafe_allow_html=True)
 
-# 2. 사이드바 제어판
+# 2. Sidebar Control Panel
 with st.sidebar:
-    st.header("🔍 분석 설정")
+    st.header("🔍 Analysis Settings")
     
-    # 분석 대상 설정
+    # Asset Mapping with corrected Steel Ticker (HRC=F)
     asset_map = {
-        "구리 (Copper)": {"ticker": "HG=F", "stock": "012330"}, # 현대모비스, 풍산 등
-        "원유 (WTI)": {"ticker": "CL=F", "stock": "010950"}, # S-Oil, 한국석유 등
-        "철강 (Steel)": {"ticker": "STRE", "stock": "004020"}, # 현대제철, POSCO홀딩스 등
-        "천연가스": {"ticker": "NG=F", "stock": "036460"} # 한국가스공사
+        "Copper (HG=F)": {"ticker": "HG=F", "stock": "012330"}, 
+        "Crude Oil (WTI)": {"ticker": "CL=F", "stock": "010950"}, 
+        "Steel (HRC=F)": {"ticker": "HRC=F", "stock": "004020"}, 
+        "Natural Gas": {"ticker": "NG=F", "stock": "036460"} 
     }
     
-    selected_asset = st.selectbox("원자재 선택", list(asset_map.keys()))
-    related_stock = st.text_input("관련주 코드 (KOSPI)", value=asset_map[selected_asset]["stock"])
+    selected_asset = st.selectbox("Select Commodity", list(asset_map.keys()))
+    related_stock = st.text_input("Related KOSPI Stock Code", value=asset_map[selected_asset]["stock"])
     
-    currency_pair = st.selectbox("환율 기준", ["USD/KRW", "EUR/KRW", "JPY/KRW"])
-    days = st.slider("분석 기간 (일)", 30, 730, 365)
+    currency_pair = st.selectbox("Currency Pair Base", ["USD/KRW", "EUR/KRW", "JPY/KRW"])
+    days = st.slider("Analysis Period (Days)", 30, 730, 365)
     start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
 
-# 3. 데이터 로딩 함수
-# 🛠️ 수정 후
+# 3. Data Loading Functions
 @st.cache_data
 def get_data(commodity_ticker, stock_ticker, start):
-    # 끝에 .squeeze()를 붙여서 데이터 형식을 통일해 줍니다.
     commodity = yf.download(commodity_ticker, start=start)['Close'].squeeze()
     stock = fdr.DataReader(stock_ticker, start=start)['Close'].squeeze()
     return commodity, stock
 
 def get_exchange_rate(pair):
-    # ExchangeRate-API 사용 예시 (기존에 사용하셨던 API 구조에 맞춤)
     base_currency = pair.split('/')[0]
     target_currency = pair.split('/')[1]
     url = f"https://v6.exchangerate-api.com/v6/{EXCHANGE_RATE_KEY}/pair/{base_currency}/{target_currency}"
-    res = requests.get(url).json()
-    return res.get('conversion_rate', 0)
+    try:
+        res = requests.get(url).json()
+        return res.get('conversion_rate', 0)
+    except:
+        return 0
 
-# 4. 메인 분석 로직
+# 4. Main Core Logic
 try:
-    with st.spinner('데이터를 통합 분석 중입니다...'):
+    with st.spinner('Integrating and analyzing market data...'):
         commodity_data, stock_data = get_data(asset_map[selected_asset]["ticker"], related_stock, start_date)
         current_rate = get_exchange_rate(currency_pair)
 
-    # 1. 상단 핵심 지표 수정
-    # 🛠️ 수정 후
-    # 1. 상단 핵심 지표 수정
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        # ['Close']를 빼고 깔끔하게 .iloc[-1]만 남깁니다.
-        val_comm = float(commodity_data.iloc[-1])
-        st.metric(f"현재 {selected_asset} 가격", f"{val_comm:,.2f}")
-    with col2:
-        st.metric(f"현재 {currency_pair} 환율", f"{current_rate:,.2f}")
-    with col3:
-        # 여기도 .iloc[-1]만 남깁니다.
-        val_stock = float(stock_data.iloc[-1])
-        st.metric("관련주 종가", f"{val_stock:,.0f}원")
+    # Safety Check: Prevent crash if dataset is empty
+    if commodity_data.empty or stock_data.empty:
+        st.error("⚠️ Failed to retrieve data for the selected ticker or period. Please check the stock code or timeframe.")
+    else:
+        # 1. Key Metrics Section
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            val_comm = float(commodity_data.iloc[-1])
+            st.metric(f"Current {selected_asset} Price", f"{val_comm:,.2f}")
+        with col2:
+            st.metric(f"Current {currency_pair} FX Rate", f"{current_rate:,.2f}")
+        with col3:
+            val_stock = float(stock_data.iloc[-1])
+            st.metric("Related Stock Close", f"{val_stock:,.0f} KRW")
 
-    # 2. 상관관계 계산 부분 수정 (정확한 매칭을 위해 인덱스 기준 병합)
-    st.subheader("시계열 상관관계 추이")
-    
-    # 두 시리즈를 하나의 데이터프레임으로 합쳐서 계산
-    combined_df = pd.concat([commodity_data, stock_data], axis=1).dropna()
-    combined_df.columns = ['Comm', 'Stock']
-    
-    # 상관계수 추출
-    corr_value = combined_df['Comm'].corr(combined_df['Stock'])
+        # 2. Time-Series Correlation Trend Chart
+        st.subheader("Time-Series Price Mismatch & Correlation Trend")
+        
+        # Merge series on date index
+        combined_df = pd.concat([commodity_data, stock_data], axis=1).dropna()
+        combined_df.columns = ['Comm', 'Stock']
+        
+        corr_value = combined_df['Comm'].corr(combined_df['Stock'])
 
-    # ... (Plotly 그래프 부분은 동일) ...
+        # Plotly Dual-Axis Line Chart
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+        fig.add_trace(
+            go.Scatter(x=combined_df.index, y=combined_df['Comm'], name=f"{selected_asset}", line=dict(color='#ffcc00', width=2)),
+            secondary_y=False,
+        )
+        fig.add_trace(
+            go.Scatter(x=combined_df.index, y=combined_df['Stock'], name="Stock Price", line=dict(color='#00ccff', width=2)),
+            secondary_y=True,
+        )
+        
+        fig.update_layout(
+            template="plotly_dark",
+            hovermode="x unified",
+            legend=dict(x=0, y=1.1, orientation="h"),
+            margin=dict(l=20, r=20, t=40, b=20),
+            height=450
+        )
+        fig.update_yaxes(title_text="Commodity Value", secondary_y=False)
+        fig.update_yaxes(title_text="Stock Value (KRW)", secondary_y=True)
+        
+        st.plotly_chart(fig, use_container_width=True)
 
-    # 3. 인사이트 섹션 수정
-    st.markdown("---")
-    st.subheader("💡 무역 실무 전략 분석")
-    
-    col_a, col_b = st.columns(2)
-    with col_a:
-        st.info(f"**상관관계 지수:** {corr_value:.2f}")
-        # 상관관계 해석 로직
-        if corr_value > 0.5:
-            st.write("✅ 원자재 가격 상승 시 주가도 함께 상승하는 경향이 강합니다.")
-        elif corr_value < -0.5:
-            st.write("⚠️ 원자재 가격 상승이 기업 수익성에 부담을 주는 구조입니다.")
-        else:
-            st.write("⚖️ 현재 원자재가와 주가 간의 뚜렷한 동조화 현상은 보이지 않습니다.")
+        # 3. Global Trade Strategy Insights
+        st.markdown("---")
+        st.subheader("💡 Global Trade Strategy Insights")
+        
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.info(f"**Correlation Coefficient:** {corr_value:.2f}")
+            if corr_value > 0.5:
+                st.write("✅ **Strong Positive Correlation:** Equity values tend to rise alongside commodity cost shocks. Strong pricing power or inventory gains detected.")
+            elif corr_value < -0.5:
+                st.write("⚠️ **Strong Negative Correlation:** Rising raw material indexes act as a critical cost burden, heavily compressing profit margins for the business.")
+            else:
+                st.write("⚖️ **Neutral Correlation:** Price changes in this specific commodity do not show a statistically meaningful direct impact on the stock price.")
 
-    with col_b:
-        st.warning("**무역 전략 가이드**")
-        if current_rate > 1350: # 예시 기준선
-            st.write("- 현재 환율이 매우 높습니다. 수입 원재료 비중이 높은 경우 수익성 악화가 우려됩니다.")
-        else:
-            st.write("- 환율이 비교적 안정적입니다. 원자재 하락 시점이 매수 타이밍이 될 수 있습니다.")
+        with col_b:
+            st.warning("**Risk Management Guide**")
+            if current_rate > 1350:
+                st.write("- **FX Warning:** The exchange rate is significantly high. High exposure to imported raw components will cause severe margin degradation.")
+            else:
+                st.write("- **FX Stable:** Foreign currency exposure is stable. Focus on finding micro-entry points or supply chain adjustments based purely on raw commodity bottoms.")
 
 except Exception as e:
-    st.error(f"데이터 로드 중 오류 발생: {e}")
-    st.info("사이드바에서 정확한 종목 코드와 API 키 설정을 확인해주세요.")
+    st.error(f"Error during data processing: {e}")
+    st.info("Please verify the tickers and ensure your internet connection or API keys are configured properly.")
