@@ -26,7 +26,7 @@ st.markdown("""
         background-color: #1e1e1e; padding: 15px; border-radius: 10px;
     }
     </style>
-    <div class="main-header">🌍 원자재-환율-관련주 상관관계 분석기</div>
+    <div class="main-header"> 원자재-환율-관련주 상관관계 분석기</div>
     """, unsafe_allow_html=True)
 
 # 2. 사이드바 제어판
@@ -75,16 +75,16 @@ try:
     col1, col2, col3 = st.columns(3)
     with col1:
         # 시리즈의 마지막 값을 스칼라(숫자)로 변환하여 출력
-        val_comm = float(commodity_data.iloc[-1])
+        val_comm = float(commodity_data['가격'].iloc[-1])
         st.metric(f"현재 {selected_asset} 가격", f"{val_comm:,.2f}")
     with col2:
         st.metric(f"현재 {currency_pair} 환율", f"{current_rate:,.2f}")
     with col3:
-        val_stock = float(stock_data.iloc[-1])
+        val_stock = float(stock_data['종가'].iloc[-1])
         st.metric("관련주 종가", f"{val_stock:,.0f}원")
 
     # 2. 상관관계 계산 부분 수정 (정확한 매칭을 위해 인덱스 기준 병합)
-    st.subheader("📈 시계열 상관관계 추이")
+    st.subheader("시계열 상관관계 추이")
     
     # 두 시리즈를 하나의 데이터프레임으로 합쳐서 계산
     combined_df = pd.concat([commodity_data, stock_data], axis=1).dropna()
